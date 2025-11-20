@@ -194,13 +194,7 @@ const Login: React.FC<LoginProps> = ({ users, onLogin, onSignUp }) => {
                     </button>
                 </p>
 
-                {isLoginView && (
-                    <div className="text-center text-xs text-text-secondary dark:text-gray-500 pt-4">
-                        <p>Usuário primário criado:</p>
-                        <p className="font-semibold mt-1">Login: eldimarcoprodutor@gmail.com</p>
-                        <p className="font-semibold">Senha: password</p>
-                    </div>
-                )}
+                {/* Usuário de exemplo removido para produção */}
             </div>
         </div>
     );
