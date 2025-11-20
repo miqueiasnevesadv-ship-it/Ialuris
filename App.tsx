@@ -108,52 +108,64 @@ const App: React.FC = () => {
     });
 
     const handleLogin = async (login: string, password: string): Promise<{ success: boolean, error?: string }> => {
-        const { data: user, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('login', login.toLowerCase())
-            .eq('password', password)
-            .single();
-    
-        if (error || !user) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: login,
+            password: password,
+        });
+
+        if (error || !data.user) {
             console.error("Supabase login error:", error);
             return { success: false, error: 'Login ou senha inválidos.' };
         }
-    
+
+        const { data: user, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', data.user.id)
+            .single();
+
+        if (profileError || !user) {
+            console.error("Supabase profile fetch error:", profileError);
+            return { success: false, error: 'Não foi possível carregar o perfil do usuário.' };
+        }
+        
         setCurrentUser(user);
         return { success: true };
     };
-
-    const handleLogout = () => {
-        setCurrentUser(null);
-        setActiveView('dashboard');
-    };
     
     const handleSignUp = async (name: string, login: string, password: string): Promise<{ success: boolean, error?: string }> => {
-        const newUser: Omit<User, 'id'> = {
-            name,
-            login: login.toLowerCase(),
-            password,
-            role: 'Atendente',
-            avatar_url: `https://i.pravatar.cc/150?u=${Date.now()}`,
-        };
-        
-        const { data: insertedUser, error: insertError } = await supabase
-            .from('profiles')
-            .insert([newUser])
-            .select()
-            .single();
-    
-        if (insertError) {
-            if (insertError.message.includes('duplicate key value violates unique constraint')) {
-                return { success: false, error: 'Este login (email) já está em uso.' };
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: login,
+            password: password,
+            options: {
+                data: {
+                    name: name,
+                    avatar_url: `https://i.pravatar.cc/150?u=${Date.now()}`,
+                }
             }
-            console.error("Supabase insert error:", insertError);
+        });
+
+        if (authError) {
+            console.error("Supabase sign up error:", authError);
+            return { success: false, error: authError.message };
+        }
+
+        if (!authData.user) {
             return { success: false, error: 'Não foi possível criar a conta.' };
         }
-        
-        if (!insertedUser) {
-            return { success: false, error: 'Não foi possível criar a conta.' };
+
+        // The profile is now created by a trigger in Supabase, but we can fetch it to set the state
+        const { data: insertedUser, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single();
+
+        if (profileError) {
+            console.error("Supabase profile creation/fetch error:", profileError);
+            // Even if profile creation fails, the auth user exists. We can try to log them in.
+            setCurrentUser({ id: authData.user.id, name: name, login: login, role: 'Atendente', avatar_url: '' });
+            return { success: true }; // Let the user in, even if profile is broken
         }
     
         setUsers(prevUsers => [...prevUsers, insertedUser]);
