@@ -103,7 +103,7 @@ const Login: React.FC<LoginProps> = ({ users, onLogin, onSignUp }) => {
                         <ChatIcon className="w-12 h-12 text-primary"/>
                     </div>
                     <h1 className="text-2xl font-bold text-text-main dark:text-white">
-                        {isLoginView ? 'Bem-vindo ao E3CRM' : 'Crie sua Conta'}
+                        {isLoginView ? 'Bem-vindo ao I.A Luris CRM' : 'Crie sua Conta'}
                     </h1>
                     <p className="mt-2 text-text-secondary dark:text-gray-400">
                         {isLoginView ? 'Faça login para continuar' : 'Preencha os dados para se cadastrar'}
