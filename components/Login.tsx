@@ -59,7 +59,7 @@ const Login: React.FC<LoginProps> = ({ users, onLogin, onSignUp }) => {
         }
 
         const { error } = await supabase.auth.resetPasswordForEmail(login, {
-            redirectTo: `${window.location.origin}/update-password`, // URL para onde o usuário será redirecionado após clicar no link do email
+            redirectTo: `https://www.ialuris.com.br/update-password`, // URL para onde o usuário será redirecionado após clicar no link do email
         });
 
         if (error) {
