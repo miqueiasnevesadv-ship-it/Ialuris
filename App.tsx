@@ -39,7 +39,7 @@ const resetAndCreatePrimaryUser = async () => {
 
     console.log("Criando o usuário primário (Gerente)...");
     const { data: manager, error: insertError } = await supabase
-        .from('profiles')
+        .from('User')
         .insert({
             name: 'Gerente Principal',
             login: 'eldimarcoprodutor@gmail.com',
@@ -119,7 +119,7 @@ const App: React.FC = () => {
         }
 
         const { data: user, error: profileError } = await supabase
-            .from('profiles')
+            .from('User')
             .select('*')
             .eq('id', data.user.id)
             .single();
@@ -154,9 +154,28 @@ const App: React.FC = () => {
             return { success: false, error: 'Não foi possível criar a conta.' };
         }
 
-        // The profile is now created by a trigger in Supabase, but we can fetch it to set the state
+        // The profile is NOT created by a trigger in this setup, so we must insert it manually
+        const { data: insertedUser, error: insertProfileError } = await supabase
+            .from('User') // Assuming 'User' is the correct table name based on your SQL
+            .insert({
+                id: authData.user.id,
+                name: name,
+                login: login,
+                role: 'Atendente', // Default role for new signups
+                avatar_url: `https://i.pravatar.cc/150?u=${authData.user.id}`,
+            })
+            .select()
+            .single();
+
+        if (insertProfileError) {
+            console.error("Supabase profile creation error:", insertProfileError);
+            return { success: false, error: 'Falha ao criar o perfil do usuário.' };
+        }
+
+        // Now we can fetch the profile to set the state
+        const { data: fetchedUser, error: profileError } = await supabase
         const { data: insertedUser, error: profileError } = await supabase
-            .from('profiles')
+            .from('User')
             .select('*')
             .eq('id', authData.user.id)
             .single();
@@ -164,12 +183,12 @@ const App: React.FC = () => {
         if (profileError) {
             console.error("Supabase profile creation/fetch error:", profileError);
             // Even if profile creation fails, the auth user exists. We can try to log them in.
-            setCurrentUser({ id: authData.user.id, name: name, login: login, role: 'Atendente', avatar_url: '' });
-            return { success: true }; // Let the user in, even if profile is broken
+            setCurrentUser(fetchedUser);
+            return { success: true };
         }
     
-        setUsers(prevUsers => [...prevUsers, insertedUser]);
-        setCurrentUser(insertedUser);
+        setUsers(prevUsers => [...prevUsers, fetchedUser]);
+        setCurrentUser(fetchedUser);
         return { success: true };
     };
 
@@ -238,7 +257,7 @@ const App: React.FC = () => {
             { data: qrData },
             { data: kbData }
         ] = await Promise.all([
-             supabase.from('profiles').select('*'),
+             supabase.from('User').select('*'),
              supabase.from('crm_contacts').select('*'), 
              supabase.from('chats').select('*, messages(*)').order('timestamp', { foreignTable: 'messages', ascending: false }),
              supabase.from('quick_replies').select('*'),
@@ -298,7 +317,7 @@ const App: React.FC = () => {
     useEffect(() => {
         const initializeApp = async () => {
             try {
-                const { data: existingUsers, error } = await supabase.from('profiles').select('id').limit(1);
+                const { data: existingUsers, error } = await supabase.from('User').select('id').limit(1);
 
                 if (error && error.code !== '42P01') { // 42P01 is "undefined_table" for Postgres
                     console.error("Erro ao verificar usuários existentes:", error);
@@ -407,7 +426,7 @@ const App: React.FC = () => {
     };
 
     const handleAddUser = async (newUser: Omit<User, 'id' | 'password'> & { password?: string }) => {
-        const { data, error } = await supabase.from('profiles').insert([newUser]).select().single();
+        const { data, error } = await supabase.from('User').insert([newUser]).select().single();
         if (!error && data) {
             setUsers(current => [...current, data]);
         } else {
@@ -418,7 +437,7 @@ const App: React.FC = () => {
 
     const handleUpdateUser = async (updatedUser: User) => {
         const { id, password, ...userData } = updatedUser;
-        const { data, error } = await supabase.from('profiles').update(userData).eq('id', id).select().single();
+        const { data, error } = await supabase.from('User').update(userData).eq('id', id).select().single();
         if (!error && data) {
             setUsers(current => current.map(u => u.id === data.id ? data : u));
             if (currentUser?.id === data.id) {
@@ -431,7 +450,7 @@ const App: React.FC = () => {
     };
     
     const handleDeleteUser = async (userId: string) => {
-        const { error } = await supabase.from('profiles').delete().eq('id', userId);
+        const { error } = await supabase.from('User').delete().eq('id', userId);
         if (!error) {
             setUsers(current => current.filter(u => u.id !== userId));
         } else {
